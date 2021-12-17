@@ -1,0 +1,68 @@
+services:
+
+############################# ASP.NET Core Web API ##############################
+  domestic-flight-api:
+    build:
+      context: .
+      dockerfile: src/Alibaba.DomesticFlight.API/Dockerfile
+    container_name: DomesticFlightApiContainer
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Staging
+    ports:
+      - "5010:80" 
+    restart: always
+    networks:
+      - Alibaba
+    #depends_on:
+    #  - fluentd-service
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        fluentd-async: "true"
+       
+############################# Fluentd ##############################
+  fluentd-service:
+    build:
+      context: .
+      dockerfile: Fluentd/Fluentd.Dockerfile
+    volumes:
+      - ./Fluentd/conf:/fluentd/etc
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    networks:
+      - Alibaba
+    depends_on:
+      - ElasticSearchService
+
+############################# Elastic Search ##############################
+  ElasticSearchService:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.16.0
+    container_name: ElasticSearchContainer
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      - xpack.security.enabled=false
+      - discovery.type=single-node
+    networks:
+      - Alibaba
+    restart: always
+
+############################# Kibana ##############################
+  KibanaService:
+    image: docker.elastic.co/kibana/kibana:7.16.0
+    container_name: KibanaContainer
+    depends_on:
+      - ElasticSearchService
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://ElasticSearchContainer:9200/
+    networks:
+      - Alibaba
+    restart: always
+
+networks:
+  Alibaba:
